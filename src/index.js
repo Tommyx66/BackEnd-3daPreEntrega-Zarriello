@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const app = express();
@@ -8,12 +9,33 @@ const cartsController = require('./controllers/cartsController');
 const authController = require('./controllers/authController');
 const authorizationMiddleware = require('./middleware/authorizationMiddleware');
 const db = require('./db');
+const swaggerSetup = require('./swagger'); 
+const winston = require('winston');
+const errorDictionary = require('./errorDictionary');
+
+
+
 
 const PORT = 8080;
 
+const logger = winston.createLogger({
+  level: 'debug',
+  format: winston.format.combine(
+    winston.format.colorize(),
+    winston.format.simple()
+  ),
+  transports: [
+    new winston.transports.Console(),
+  ],
+});
+
+if (process.env.NODE_ENV === 'production') {
+  logger.add(new winston.transports.File({ filename: 'errors.log', level: 'error' }));
+}
+
 app.use(express.json());
 app.use(session({
-  secret: 'your-secret-key', // Cambiar a una clave segura
+  secret: 'your-secret-key',
   resave: false,
   saveUninitialized: true,
 }));
@@ -50,8 +72,29 @@ app.delete('/api/products/:pid', authorizationMiddleware.checkAdmin, productsCon
 app.post('/api/carts/:cid/message', authorizationMiddleware.checkUser, cartsController.addMessage);
 app.post('/api/carts/:cid/product/:pid', authorizationMiddleware.checkUser, cartsController.addProduct);
 
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en el puerto ${PORT}`);
+app.get('/loggerTest', (req, res) => {
+  logger.debug('Log de nivel debug');
+  logger.info('Log de nivel info');
+  logger.warn('Log de nivel warning');
+  logger.error('Log de nivel error');
+  res.send('Logs generados');
 });
 
+// Manejo de errores
+app.use((err, req, res, next) => {
+  if (!err) return next();
+  const statusCode = err.status || 500;
+  const message = errorDictionary[err.message] || err.message || errorDictionary.SERVER_ERROR;
+  logger.error(`Error [${statusCode}]: ${message}`);
+  res.status(statusCode).json({ error: message });
+});
 
+// Incluir rutas y configuración de Swagger
+app.use('/api', productsRouter);
+app.use('/api', cartsRouter);
+app.use(swaggerSetup);
+
+// Iniciar el servidor
+app.listen(PORT, () => {
+  logger.info(`Servidor escuchando en el puerto ${PORT}`);
+});

@@ -2,8 +2,37 @@ const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
 const router = express.Router();
+const { generateMockCarts } = require('../mocking'); // Importa la función de generación de carritos simulados
 
 const cartsFilePath = path.join(__dirname, '../../data/carritos.json');
+
+// Manejador de errores comunes
+const errorHandler = (res, statusCode, message) => {
+    res.status(statusCode).send(message);
+};
+
+/**
+ * @swagger
+ * /api/carts/{cid}:
+ *   get:
+ *     summary: Obtiene un carrito por su ID.
+ *     parameters:
+ *       - in: path
+ *         name: cid
+ *         required: true
+ *         description: ID del carrito a obtener.
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Carrito obtenido con éxito.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cart'
+ *       '404':
+ *         description: Carrito no encontrado.
+ */
 
 router.get('/:cid', async (req, res) => {
     const cartId = req.params.cid;
@@ -13,43 +42,22 @@ router.get('/:cid', async (req, res) => {
         const cart = carts.find(c => c.id === cartId);
 
         if (!cart) {
-            return res.status(404).send('Carrito no encontrado');
+            return errorHandler(res, 404, 'Carrito no encontrado');
         }
 
         res.send(cart.products);
     } catch (error) {
-        res.status(500).send('Error al obtener el carrito');
+        errorHandler(res, 500, 'Error al obtener el carrito');
     }
 });
 
-router.post('/:cid/product/:pid', async (req, res) => {
-    const cartId = req.params.cid;
-    const productId = req.params.pid;
-    const quantity = req.body.quantity || 1;
-
+// Ruta para obtener carritos con mocking (simulación)
+router.get('/mockingcarts', async (req, res) => {
     try {
-        const cartsData = await fs.readFile(cartsFilePath, 'utf8');
-        let carts = JSON.parse(cartsData);
-
-        const cartIndex = carts.findIndex(c => c.id === cartId);
-        if (cartIndex === -1) {
-            return res.status(404).send('Carrito no encontrado');
-        }
-
-        const cart = carts[cartIndex];
-
-        const productIndex = cart.products.findIndex(p => p.product === productId);
-
-        if (productIndex !== -1) {
-            cart.products[productIndex].quantity += quantity;
-        } else {
-            cart.products.push({ product: productId, quantity });
-        }
-
-        await fs.writeFile(cartsFilePath, JSON.stringify(carts, null, 2));
-        res.send(cart);
+        const mockCarts = generateMockCarts(10); // Genera 10 carritos simulados
+        res.json(mockCarts);
     } catch (error) {
-        res.status(500).send('Error al agregar producto al carrito');
+        errorHandler(res, 500, 'Error al generar carritos simulados');
     }
 });
 

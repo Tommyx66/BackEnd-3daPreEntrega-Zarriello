@@ -1,31 +1,23 @@
-const Product = require('../models/product'); // Importa el modelo del producto
-
-// Función para crear un nuevo producto
-async function createProduct(req, res) {
+async function generateMockProducts(req, res) {
   try {
-    const { name, price, description } = req.body;
-    const product = new Product({ name, price, description });
-    const newProduct = await product.save();
-    res.status(201).json(newProduct);
+    const mockProducts = []; // Almacenará los productos simulados
+    // Generar 100 productos simulados
+    for (let i = 1; i <= 100; i++) {
+      const product = new Product({
+        name: `Product ${i}`,
+        price: Math.floor(Math.random() * 100) + 1,
+        description: `Description of Product ${i}`,
+      });
+      mockProducts.push(await product.save());
+    }
+    res.json(mockProducts);
   } catch (error) {
-    res.status(500).json({ error: 'Error al crear el producto' });
+    res.status(500).json({ error: 'Error al generar productos simulados' });
   }
 }
-
-// Función para obtener todos los productos
-async function getAllProducts(req, res) {
-  try {
-    const products = await Product.find();
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener los productos' });
-  }
-}
-
-// Otras funciones como actualizar y eliminar productos podrían ir aquí
 
 module.exports = {
   createProduct,
   getAllProducts,
-  // Exporta otras funciones aquí si es necesario
+  generateMockProducts,
 };
